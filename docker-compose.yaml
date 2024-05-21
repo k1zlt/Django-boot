@@ -1,0 +1,63 @@
+services:
+  dbevent:
+    container_name: dbevent
+    image: postgis/postgis:16-3.4
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    ports:
+      - "5432:5432"
+    
+  backend:
+    container_name: web_event
+    command: python manage.py runserver 0.0.0.0:8000
+    build:
+      context: .
+      dockerfile: ./config/Dockerfile
+    volumes:
+      - ./config:/code
+      - static_volume:/config/frontend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - dbevent
+  
+  redis:    
+    image: redis:7
+  
+  celery:
+    container_name: celery
+    build:
+      context: .
+      dockerfile: ./config/Dockerfile
+    command: celery -A config.celery_app worker --loglevel=info
+    volumes:
+      - ./config:/code
+    env_file:
+      - .env
+    depends_on:
+      - dbevent
+      - redis
+  
+  celery-beat:
+    container_name: celery-beat
+    build:
+      context: .
+      dockerfile: ./config/Dockerfile
+    command: celery -A config.celery_app beat --loglevel=info
+    volumes:
+      - ./config:/code
+    env_file:
+      - .env
+    depends_on:
+      - dbevent
+      - redis
+
+volumes:
+  static_volume:
+  postgres_data:

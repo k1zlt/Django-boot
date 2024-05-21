@@ -1,0 +1,1 @@
+# Django Boot 1.0.0
